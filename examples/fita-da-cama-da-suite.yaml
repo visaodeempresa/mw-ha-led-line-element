@@ -1,0 +1,48 @@
+# A fita da cama da suíte contorna três paredes — um traço só, três trechos.
+# Os números são % da planta: "x y, x y, x y".
+type: custom:mw-led-line-element
+entity: light.led_da_cama_da_suite
+points: 67 96, 67 81, 91 81, 91 96
+thickness: 3px
+hold_action: more-info
+
+---
+# O retângulo original (o button-card que este elemento substitui),
+# pixel a pixel: basta não passar pontos.
+type: custom:mw-led-line-element
+entity: light.led_da_cama_da_suite
+shape: box
+style:
+  top: 88%
+  left: 79%
+  width: 24%
+  height: 15%
+  transform: translate(-50%, -50%)
+
+---
+# Fita sem efeito nenhum: branco quente fixo, sem animação.
+type: custom:mw-led-line-element
+entity: light.fita_da_cozinha
+points: 12 40, 48 40
+color_on: "#ffcc88"
+animation: none
+
+---
+# Fita cheia de efeitos: o desenho segue o `effect` que a luz reporta
+# (Rainbow → arco-íris, Theater Chase → corrida, Fire → fogo…).
+# `effect_map` ensina os nomes que o mapa não conhece.
+type: custom:mw-led-line-element
+entity: light.led_da_sala
+segments:
+  - 8 92, 8 60
+  - 8 60, 52 60, 52 92
+  - points: 60 20, 92 20, 92 48, 60 48
+    closed: true
+    color: "#7cf"
+thickness: 1.2%
+soft_edge: 0.3
+animation: auto
+animation_speed: 1.4
+effect_map:
+  Festa da Cris: twinkle
+  Modo Cinema: breathe

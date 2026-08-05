@@ -1,0 +1,99 @@
+<!doctype html>
+<!-- Bancada visual do mw-led-line-element: à esquerda o YAML original
+     (button-card), à direita o elemento. Devem ser indistinguíveis. -->
+<html lang="pt-BR"><head><meta charset="utf-8"><title>MW LED Line Element</title>
+<style>
+  body{margin:0;background:#11151c;color:#cfe;font:13px/1.5 system-ui,sans-serif;padding:16px}
+  h2{font-size:13px;font-weight:600;color:#7cf;margin:18px 0 8px}
+  .row{display:flex;gap:16px;flex-wrap:wrap}
+  .plan{position:relative;width:340px;aspect-ratio:16/10;border-radius:10px;
+    background:#1b2230 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><path d="M0 39h40M39 0v40" stroke="rgba(255,255,255,.06)" fill="none"/></svg>');
+    overflow:hidden;border:1px solid #2a3446}
+  .cap{font-size:11px;color:#7f93ad;margin-top:4px}
+  /* réplica do button-card do YAML, para comparação lado a lado */
+  .ref{position:absolute;padding:0;border-radius:16px;
+    background:rgba(255,200,120,.15);border:3px solid rgb(255,200,120);
+    box-shadow:0 0 8px 2px rgba(255,200,120,.9),0 0 20px 6px rgba(255,200,120,.55),
+      inset 0 0 12px 2px rgba(255,200,120,.5);
+    top:88%;left:79%;width:24%;height:15%;transform:translate(-50%,-50%)}
+</style></head><body>
+<script>
+  // stub mínimo de hass — o elemento só lê states[] e chama callService
+  const S = {
+    "light.fita": { state:"on", attributes:{ friendly_name:"Fita", rgb_color:[255,200,120], brightness:255 } },
+    "light.rgb":  { state:"on", attributes:{ friendly_name:"RGB", rgb_color:[80,180,255], effect:"Rainbow" } },
+    "light.chase":{ state:"on", attributes:{ friendly_name:"Chase", rgb_color:[180,80,255], effect:"Theater Chase" } },
+    "light.white":{ state:"on", attributes:{ friendly_name:"Branco", color_temp_kelvin:2700 } },
+    "light.off":  { state:"off", attributes:{ friendly_name:"Apagada" } },
+    "light.nope": { state:"unavailable", attributes:{ friendly_name:"Sumida" } },
+  };
+  const HASS = { states:S, callService:(d,s,x)=>console.log("callService",d,s,x) };
+</script>
+<script src="../dist/mw-led-line-element.js"></script>
+<script>
+  const mk = (plan, cfg) => {
+    const el = document.createElement("mw-led-line-element");
+    el.setConfig(cfg); el.hass = HASS; plan.appendChild(el);
+  };
+  const plan = (label, build) => {
+    const wrap = document.createElement("div");
+    const p = document.createElement("div"); p.className = "plan";
+    const c = document.createElement("div"); c.className = "cap"; c.textContent = label;
+    wrap.appendChild(p); wrap.appendChild(c); build(p);
+    return wrap;
+  };
+  const row = (title, items) => {
+    const h = document.createElement("h2"); h.textContent = title;
+    const r = document.createElement("div"); r.className = "row";
+    items.forEach((i) => r.appendChild(i));
+    document.body.appendChild(h); document.body.appendChild(r);
+  };
+
+  row("1 · box vs. YAML original (devem ser iguais)", [
+    plan("referência: o button-card do YAML", (p) => {
+      const d = document.createElement("div"); d.className = "ref"; p.appendChild(d);
+    }),
+    plan("mw-led-line-element (shape: box)", (p) => {
+      mk(p, { entity:"light.fita", shape:"box",
+        left:"79%", top:"88%", width:"24%", height:"15%" });
+    }),
+    plan("box: apagada / indisponível", (p) => {
+      mk(p, { entity:"light.off", shape:"box", left:"30%", top:"40%", width:"36%", height:"18%" });
+      mk(p, { entity:"light.nope", shape:"box", left:"30%", top:"75%", width:"36%", height:"18%" });
+    }),
+  ]);
+
+  row("2 · fita com vários segmentos (o caso da cama da suíte)", [
+    plan("3 paredes, um traço só", (p) => {
+      mk(p, { entity:"light.fita", points:"18 78, 18 32, 62 32, 62 62" });
+    }),
+    plan("segmentos soltos + fechado", (p) => {
+      mk(p, { entity:"light.rgb", segments:[
+        "12 20, 88 20", "12 86, 88 86",
+        { points:"40 40, 62 40, 62 62, 40 62", closed:true },
+      ]});
+    }),
+    plan("espessura em % + borda difusa", (p) => {
+      mk(p, { entity:"light.chase", points:"14 70, 50 24, 86 70",
+        thickness:"1.4%", soft_edge:0.35 });
+    }),
+  ]);
+
+  row("3 · cores e efeitos", [
+    plan("branco 2700K · cor fixa · apagada", (p) => {
+      mk(p, { entity:"light.white", points:"10 22, 90 22" });
+      mk(p, { entity:"light.fita", points:"10 50, 90 50", color_on:"#39ff88", animation:"none" });
+      mk(p, { entity:"light.off",  points:"10 78, 90 78" });
+    }),
+    plan("rainbow · chase · twinkle", (p) => {
+      mk(p, { entity:"light.rgb",   points:"10 22, 90 22" });
+      mk(p, { entity:"light.chase", points:"10 50, 90 50" });
+      mk(p, { entity:"light.rgb",   points:"10 78, 90 78", animation:"twinkle" });
+    }),
+    plan("indisponível (tracejado) · box+chase", (p) => {
+      mk(p, { entity:"light.nope", points:"10 30, 90 30" });
+      mk(p, { entity:"light.chase", shape:"box", left:"50%", top:"70%", width:"70%", height:"26%" });
+    }),
+  ]);
+</script>
+</body></html>
