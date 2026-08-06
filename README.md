@@ -13,6 +13,12 @@ entity: light.led_da_cama_da_suite
 points: 67 96, 67 81, 91 81, 91 96
 ```
 
+![Nove exemplos do elemento: o box igual ao YAML original, fitas de vários
+segmentos e as variações de cor e efeito](docs/galeria.png)
+
+*Gerado por `tools/preview.html` — o YAML de cada painel está na
+[galeria](#galeria).*
+
 ## Duas formas, o mesmo elemento
 
 | `shape` | o que desenha |
@@ -73,6 +79,125 @@ Fita de cor fixa (RGB ou branca)? `color_on: "#ffcc88"` e pronto.
 
 Tudo anima só `opacity`, `filter` e `stroke-dashoffset` — composição na GPU,
 sem redesenhar a planta. `prefers-reduced-motion` desliga as animações.
+
+## Galeria
+
+Os nove painéis da imagem lá de cima, com o YAML que os produz. Todos usam
+luzes de mentira (`tools/preview.html` traz o seu próprio `hass` de bolso), mas
+a configuração é a mesma que vai para o `picture-elements`.
+
+### 1 · o `box` contra o YAML original
+
+O primeiro painel é uma réplica em CSS puro do `custom:button-card` que este
+elemento aposenta; o segundo é o elemento. Mesma posição, mesma borda, mesmo
+halo — a comparação existe justamente para provar que nada mudou de aparência.
+
+```yaml
+# painel 2 — idêntico ao button-card do YAML original
+type: custom:mw-led-line-element
+entity: light.led_da_cama_da_suite
+shape: box
+left: 79%
+top: 88%
+width: 24%
+height: 15%
+```
+
+```yaml
+# painel 3 — os outros dois estados, sem nenhum ajuste extra:
+# apagada = traço fino translúcido · indisponível = tracejado vermelho com halo
+type: custom:mw-led-line-element
+entity: light.fita_apagada
+shape: box
+left: 30%
+top: 40%
+width: 36%
+height: 18%
+```
+
+### 2 · fita com vários segmentos
+
+```yaml
+# painel 1 — a fita da cama contornando três paredes, num traço só
+type: custom:mw-led-line-element
+entity: light.led_da_cama_da_suite
+points: 18 78, 18 32, 62 32, 62 62
+```
+
+```yaml
+# painel 2 — dois trechos soltos + um contorno fechado, na mesma entidade
+type: custom:mw-led-line-element
+entity: light.led_da_sala
+segments:
+  - 12 20, 88 20
+  - 12 86, 88 86
+  - points: 40 40, 62 40, 62 62, 40 62
+    closed: true
+```
+
+```yaml
+# painel 3 — espessura em % (acompanha a planta) e borda difusa
+type: custom:mw-led-line-element
+entity: light.led_do_hall
+points: 14 70, 50 24, 86 70
+thickness: 1.4%
+soft_edge: 0.35
+```
+
+### 3 · cores e efeitos
+
+```yaml
+# painel 1, linha 1 — fita branca: 2700 K vira âmbar de verdade
+type: custom:mw-led-line-element
+entity: light.fita_branca
+points: 10 22, 90 22
+
+# painel 1, linha 2 — fita de cor fixa, sem efeito nenhum
+type: custom:mw-led-line-element
+entity: light.fita_verde
+points: 10 50, 90 50
+color_on: "#39ff88"
+animation: none
+
+# painel 1, linha 3 — a mesma fita apagada
+type: custom:mw-led-line-element
+entity: light.fita_apagada
+points: 10 78, 90 78
+```
+
+```yaml
+# painel 2 — efeitos: as duas primeiras seguem sozinhas o `effect` da luz
+#   ("Rainbow" → arco-íris, "Theater Chase" → corrida);
+#   a terceira força `twinkle` e ignora o que a luz reporta
+type: custom:mw-led-line-element
+entity: light.led_rgb          # effect: Rainbow
+points: 10 22, 90 22
+
+type: custom:mw-led-line-element
+entity: light.led_da_sala      # effect: Theater Chase
+points: 10 50, 90 50
+
+type: custom:mw-led-line-element
+entity: light.led_rgb
+points: 10 78, 90 78
+animation: twinkle
+```
+
+```yaml
+# painel 3 — fita indisponível (tracejado) e um `box` animado:
+# o halo do retângulo original também obedece aos efeitos
+type: custom:mw-led-line-element
+entity: light.fita_sumida
+points: 10 30, 90 30
+
+type: custom:mw-led-line-element
+entity: light.led_da_sala
+shape: box
+left: 50%
+top: 70%
+width: 70%
+height: 26%
+```
 
 ## Opções
 
