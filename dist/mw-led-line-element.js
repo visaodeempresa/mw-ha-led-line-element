@@ -16,17 +16,142 @@
  *  · animação só em opacity/filter/dashoffset (composição na GPU).
  *
  * JS puro, arquivo único, sem build.
+ *
+ * v0.2 — identidade no editor: a lista do picture-elements deixa de mostrar
+ *   "custom:mw-led-line-element / Unknown type" e passa a mostrar "Fita LED"
+ *   com o `title:` (ou o friendly_name) embaixo. Bloco compartilhado
+ *   mw-element-identity v1 — fonte em IA/lib/.
+ *
  * Repo: https://github.com/visaodeempresa/mw-ha-led-line-element
  */
 (() => {
   "use strict";
 
-  const VERSION = "0.1.0";
+  const VERSION = "0.2.0";
+
+  /* ------------------------------------------ identidade no editor */
+  // >>> mw-element-identity v1 — fonte canônica: /Volumes/SSD-T1-01/CLAUDE-SSD/IA/lib/mw-element-identity/mw-element-identity.js
+  // Identidade dos elementos MW na lista do editor do picture-elements.
+  // Detalhes e justificativa: IA/knowledge/ha-picture-elements-editor.md.
+  const MW_ID_PREFIX = "ui.panel.lovelace.editor.card.picture-elements.element_types.";
+  const MW_ID_ROW = "hui-picture-elements-card-row-editor";
+
+  // registro no padrão do window.customCards, só que para elementos
+  const MW_WIN = (() => {
+    const w = typeof window !== "undefined" ? window : globalThis;
+    if (!w.mwPictureElements) w.mwPictureElements = [];
+    if (!w.__mwElementIdentity) w.__mwElementIdentity = { wrap: null };
+    return w;
+  })();
+
+  const mwEntry = (type) =>
+    MW_WIN.mwPictureElements.find((e) => e && e.type === type) || null;
+
+  // Linha 1 — embrulha o localize do hass para responder à chave do nosso tipo.
+  // Só intercepta chaves do prefixo acima; qualquer outra vai inteira ao HA.
+  const mwElementIdentity = (hass) => {
+    try {
+      const st = MW_WIN.__mwElementIdentity;
+      if (!hass || typeof hass.localize !== "function") return;
+      if (hass.localize === st.wrap) return;          // já é o nosso
+      const orig = hass.localize;
+      const wrap = function (key) {
+        if (typeof key === "string" && key.indexOf(MW_ID_PREFIX) === 0) {
+          const hit = mwEntry(key.slice(MW_ID_PREFIX.length));
+          if (hit && hit.name) return hit.name;
+        }
+        return orig.apply(this, arguments);
+      };
+      hass.localize = wrap;
+      if (hass.localize !== wrap) return;             // objeto congelado
+      st.wrap = wrap;
+      mwRefreshRows();
+    } catch (e) { /* editor bonito não vale um erro em tela */ }
+  };
+
+  // Linha 2 — o `title` da config já resolve nativamente; isto só acrescenta
+  // uma reserva boa (nome amigável da entidade) quando não há título.
+  // Se o HA renomear o método interno, sai de cena sem barulho.
+  let mwSecondaryAsked = false;
+  const mwPatchSecondary = () => {
+    try {
+      if (mwSecondaryAsked) return;
+      if (typeof customElements === "undefined") return;
+      if (typeof customElements.whenDefined !== "function") return;
+      mwSecondaryAsked = true;
+      customElements.whenDefined(MW_ID_ROW).then(() => {
+        const cls = customElements.get(MW_ID_ROW);
+        const proto = cls && cls.prototype;
+        if (!proto || proto.__mwSecondary) return;
+        const orig = proto._getSecondaryDescription;
+        if (typeof orig !== "function") return;
+        proto._getSecondaryDescription = function (element) {
+          try {
+            const el = element || {};
+            const hit = mwEntry(el.type);
+            if (hit) {
+              if (el.title) return el.title;
+              const st = el.entity && this.hass && this.hass.states[el.entity];
+              return (st && st.attributes && st.attributes.friendly_name)
+                || el.entity || hit.description || hit.name || "";
+            }
+          } catch (e) { /* cai no original */ }
+          return orig.apply(this, arguments);
+        };
+        proto.__mwSecondary = true;
+      }).catch(() => {});
+    } catch (e) { /* idem */ }
+  };
+
+  // A lista já desenhada não sabe que ganhou nome — pede redesenho. Só custa
+  // varredura quando o editor do picture-elements chegou a ser carregado.
+  const mwRefreshRows = () => {
+    try {
+      if (typeof customElements === "undefined" || !customElements.get(MW_ID_ROW)) return;
+      if (typeof document === "undefined" || !document.body) return;
+      setTimeout(() => {
+        const seen = new Set();
+        const walk = (root, depth) => {
+          if (!root || depth > 14) return;
+          let nodes;
+          try { nodes = root.querySelectorAll("*"); } catch (e) { return; }
+          for (const n of nodes) {
+            if (n.localName === MW_ID_ROW && typeof n.requestUpdate === "function") {
+              n.requestUpdate();
+            }
+            const sr = n.shadowRoot;
+            if (sr && !seen.has(sr)) { seen.add(sr); walk(sr, depth + 1); }
+          }
+        };
+        try { walk(document.body, 0); } catch (e) { /* nada */ }
+      }, 0);
+    } catch (e) { /* nada */ }
+  };
+
+  const mwRegisterElement = (entry) => {
+    if (!entry || !entry.type) return;
+    const list = MW_WIN.mwPictureElements;
+    const i = list.findIndex((e) => e && e.type === entry.type);
+    if (i < 0) list.push(entry); else list[i] = entry;
+    mwPatchSecondary();
+    // o hass já existe quando o recurso do dashboard carrega; pegar agora faz
+    // a primeira abertura do editor já sair com o nome certo
+    try {
+      const root = document.querySelector && document.querySelector("home-assistant");
+      if (root && root.hass) mwElementIdentity(root.hass);
+    } catch (e) { /* nada */ }
+  };
+
+  // Campo do editor: é o `title` que o HA lê na segunda linha da lista.
+  const MW_TITLE_LABEL = "Título (lista do editor)";
+  const MW_TITLE_FIELD = { name: "title", selector: { text: {} } };
+  // <<< mw-element-identity v1
 
   const DEFAULTS = {
     // --- entidade ---
     entity: "",
     name: "",                    // tooltip; vazio = friendly_name
+    title: "",                   // rótulo na lista do editor; não aparece na planta
     invert: false,
 
     // --- forma ---
@@ -403,6 +528,7 @@ path{fill:none;vector-effect:non-scaling-stroke;
     getCardSize() { return 1; }
 
     set hass(hass) {
+      mwElementIdentity(hass);
       const first = !this._hass;
       this._hass = hass;
       if (!this._cfg) return;
@@ -658,7 +784,8 @@ path{fill:none;vector-effect:non-scaling-stroke;
 
   /* ---------------------------------------------------------------- editor */
   const LABELS = {
-    entity: "Entidade", name: "Nome (tooltip)", shape: "Forma",
+    entity: "Entidade", name: "Nome (tooltip)", title: MW_TITLE_LABEL,
+    shape: "Forma",
     points: "Pontos (x y, x y, …)", segments: "Segmentos (avançado)",
     closed: "Fechar o traço", left: "Esquerda", top: "Topo",
     width: "Largura", height: "Altura", border_radius: "Canto (box)",
@@ -703,6 +830,7 @@ path{fill:none;vector-effect:non-scaling-stroke;
   const SCHEMA = [
     { name: "entity", required: true, selector: { entity: { domain: ["light", "switch", "input_boolean", "fan"] } } },
     { name: "name", selector: { text: {} } },
+    MW_TITLE_FIELD,
     {
       type: "grid", name: "", schema: [
         {
@@ -866,6 +994,12 @@ path{fill:none;vector-effect:non-scaling-stroke;
       this._form.data = data;
     }
   }
+
+  mwRegisterElement({
+    type: "custom:mw-led-line-element",
+    name: "Fita LED",
+    description: "MW · fita de LED na planta",
+  });
 
   if (!customElements.get("mw-led-line-element")) {
     customElements.define("mw-led-line-element", MwLedLineElement);
